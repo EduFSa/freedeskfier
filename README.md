@@ -5,7 +5,7 @@ This is a simple [NativeFier](https://github.com/nativefier/nativefier) wrapper 
 ## NOTICE
  
 - This app still not remove any personal data created by the NativeFier application after uninstalling.
-- It creates or uses the folders $HOME/.local/bin and #HOME/.local/lib to install the application. Apps can be called by the shell if the "~/.local/bin" folder is already on PATH. 
+- It creates or uses the folders $HOME/.local/bin and #HOME/.local/lib to install the application. Apps can be called by the shell if the "~/.local/bin" folder is already in PATH enviroment variable. 
 - This app still not put categoryzed entries on Application Menus #TODO
 
 ## REQUIREMENTS
