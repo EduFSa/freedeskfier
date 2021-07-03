@@ -1,0 +1,132 @@
+#!/usr/bin/env bash
+
+## Copyright (c), 2021, Eduardo Sá
+
+## Permission is hereby granted, free of charge, to any person obtaining a 
+## copy of this software and associated documentation files (the "Software"),
+## to deal in the Software without restriction, including without limitation
+## the rights to use, copy, modify, merge, publish, distribute, sublicense,
+## and/or sell copies of the Software, and to permit persons to whom the
+## Software is furnished to do so, subject to the following conditions:
+
+## The above copyright notice and this permission notice shall be included 
+## in all copies or substantial portions of the Software.
+
+## THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS 
+## OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+## MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+## IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+## CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+## TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE 
+## SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+
+
+help_page()
+{
+    echo "Usage: freedeskfier [freedeskfierOption] [nativefierOptions] <targetURL> [dest] "
+    echo "FreeDeskfier options:"
+    echo "  install:"
+    echo "  remove: "
+    echo "  help: "
+    echo "Nativefier options:"
+    nativefier -h | tail -n +4
+}
+
+create_freedesktop_entry(){
+    echo "#!/usr/bin/env xdg-open \n
+[Desktop Entry]
+Comment=Nativefier app for $URL_DESCRIPTION
+Exec=$HOME/.local/bin/$APP_NAME
+GenericName=$APP_NAME
+Icon=$HOME/.local/lib/$NEW_FOLDER/resources/app/icon.png
+Name=$PRODUCT_NAME
+StartupNotify=true
+Terminal=false
+Type=Application
+Version=1.0
+Categories=Internet
+" > "$APP_NAME.desktop"
+}
+
+list_nativifier_packages(){
+    APPS_ON_LIB=""
+    local LIB_FOLDER=$HOME/.local/lib/
+    if [ -d $LIB_FOLDER ]; then
+        for i in $LIB_FOLDER* ; do
+            if [[ -f $i/resources/app/nativefier.json ]]; then 
+                APPS_ON_LIB=${i}$'\n'${APPS_ON_LIB}
+                APPS_ON_LIB="${APPS_ON_LIB/#$LIB_FOLDER/}"  # filter the path from the folder 
+            fi
+        done
+        [ APPS_ON_LIB = "" ] && echo "no nativefier avaliable" || printf "$APPS_ON_LIB"
+    fi
+}
+
+if [ $# -gt 0 ]; then
+    case $1 in
+        install)
+            [ ! -d $HOME/.local/lib ] && mkdir $HOME/.local/lib && echo "$HOME/.local/lib created"
+            [ ! -d $HOME/.local/bin ] && mkdir $HOME/.local/bin && echo "$HOME/.local/bin created"
+            cd $HOME/.local/lib
+            ls . > /tmp/comp1.fd
+            shift
+            # echo "debug \$1=$1"
+            # echo "debug \$2=$2"
+            # echo "debug \$3=$3"
+            RECALL="nativefier"
+            while [ $# -gt 0 ]; do 
+                RECALL="${RECALL} \"$1\""
+                shift
+            done
+            # echo $RECALL
+            eval $RECALL
+
+            if [ $? = 0 ]; then
+                ls . > /tmp/comp2.fd
+                # cat /tmp/comp1.fd
+                # cat /tmp/comp2.fd
+                NEW_FOLDER=`comm -13 /tmp/comp1.fd /tmp/comp2.fd`
+                # echo "debug: NEW_FOLDER=$NEW_FOLDER"
+                rm /tmp/comp1.fd /tmp/comp2.fd
+                cd $NEW_FOLDER
+                PRODUCT_NAME=`cat ./resources/app/nativefier.json | jq '.win32metadata' | jq -r '.ProductName'`
+                # echo "debug: PRODUCT_NAME=$PRODUCT_NAME"
+                URL_DESCRIPTION=`cat ./resources/app/nativefier.json | jq -r '.targetUrl'`
+                # echo "debug: URL_DESCRIPTION=$URL_DESCRIPTION"
+                APP_NAME=$(cat ./resources/app/nativefier.json | jq -r '.name')
+                # echo "debug: APP_NAME=$APP_NAME"
+                create_freedesktop_entry
+                cp "$APP_NAME.desktop" "$HOME/.local/share/applications/"
+                ln -s $HOME/.local/lib/$NEW_FOLDER/$APP_NAME $HOME/.local/bin/$APP_NAME
+                echo "$APP_NAME sucessfully installed in $HOME/.local/lib/$NEW_FOLDER"
+            fi
+            ;;
+        remove)
+            shift
+            if [ $# = 0 ]; then   # if no app argument, list all compatible apps
+                echo "List of nativefier apps: "
+                list_nativifier_packages
+                echo "Usage: freedeskfier remove [app]"
+            else
+                if [ -d $HOME/.local/lib/$1 ]; then
+                    APP_NAME=$(cat $HOME/.local/lib/$1/resources/app/nativefier.json | jq -r '.name')
+                    rm -r "$HOME/.local/lib/$1"
+                    rm "$HOME/.local/bin/$APP_NAME"
+                    rm "$HOME/.local/share/applications/$APP_NAME.desktop"
+                fi
+            fi
+            ;;
+        help)
+            help_page
+            ;;
+        list)
+            list_nativifier_packages
+            ;;
+        *)
+            help_page 
+            ;;
+    esac
+else 
+    help_page
+fi
